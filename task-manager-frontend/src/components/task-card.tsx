@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Task } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import Image from 'next/image';
-import { Calendar, Trash2, Edit } from 'lucide-react';
+import { Calendar, Trash2, Edit, Clock } from 'lucide-react';
 import { TaskForm } from '@/components/task-form';
+import { format, isPast, isToday } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 interface TaskCardProps {
   task: Task;
@@ -19,8 +20,16 @@ interface TaskCardProps {
 
 export function TaskCard({ task, currentUserId, onComplete, onDelete, onEdit }: TaskCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
-  const isOwner = task.userId === currentUserId;
-  const isOverdue = new Date(task.due_date) < new Date();
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  
+  const isOwner = task.userId == currentUserId;
+  useEffect(() => {
+    console.log(task);
+    console.log(currentUserId);
+  }, [task, currentUserId]);
+  const dueDate = new Date(task.due_date);
+  const isOverdue = isPast(dueDate) && !isToday(dueDate) && !task.completed;
 
   const handleDelete = async () => {
     if (isDeleting) return;
@@ -33,34 +42,38 @@ export function TaskCard({ task, currentUserId, onComplete, onDelete, onEdit }: 
     }
   };
   
+  const handleStatusChange = async (checked: boolean) => {
+    if (isUpdatingStatus) return;
+    
+    setIsUpdatingStatus(true);
+    try {
+      await onComplete(task.id, checked);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+  
+  const handleEdit = async (data: Partial<Task>, image?: File) => {
+    await onEdit(data, image);
+    setIsEditModalOpen(false);
+  };
+  
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    }).format(date);
+    return format(date, 'dd MMMM yyyy', { locale: fr });
   };
 
   return (
-    <Card className={`w-full ${isOverdue && !task.completed ? 'border-red-500' : ''} overflow-hidden ${task.completed ? 'opacity-70' : ''}`}>
-      {/* {task.imageUrl && (
-        <div className="relative w-full h-48">
-          <Image
-            src={task.imageUrl}
-            alt={task.title}
-            fill
-            className="object-cover"
-          />
-        </div>
-      )} */}
+    <Card className={`w-full ${isOverdue ? 'border-red-500' : ''} overflow-hidden ${task.completed ? 'opacity-70' : ''}`}>
+      
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-2">
             <Checkbox
               checked={task.completed}
-              onCheckedChange={(checked) => onComplete(task.id, checked as boolean)}
+              onCheckedChange={handleStatusChange}
               className="mt-1"
+              disabled={isUpdatingStatus}
             />
             <div>
               <CardTitle className={task.completed ? 'line-through text-muted-foreground' : ''}>
@@ -69,17 +82,31 @@ export function TaskCard({ task, currentUserId, onComplete, onDelete, onEdit }: 
               <CardDescription className="flex items-center mt-1">
                 <Calendar className="h-3 w-3 mr-1" />
                 {formatDate(task.due_date)}
+                {isOverdue && (
+                  <span className="ml-2 text-red-500 flex items-center">
+                    <Clock className="h-3 w-3 mr-1" />
+                    En retard
+                  </span>
+                )}
               </CardDescription>
             </div>
           </div>
           {isOwner && (
             <div className="flex gap-1">
-              <TaskForm task={task} onSubmit={onEdit} />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setIsEditModalOpen(true)}
+                className="h-8 w-8"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
               <Button
                 variant="destructive"
                 size="icon"
                 onClick={handleDelete}
                 disabled={isDeleting}
+                className="h-8 w-8"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -93,6 +120,16 @@ export function TaskCard({ task, currentUserId, onComplete, onDelete, onEdit }: 
             {task.description}
           </p>
         </CardContent>
+      )}
+      
+      {/* Modale d'édition */}
+      {isEditModalOpen && (
+        <TaskForm 
+          task={task} 
+          onSubmit={handleEdit} 
+          open={isEditModalOpen}
+          onOpenChange={setIsEditModalOpen}
+        />
       )}
     </Card>
   );

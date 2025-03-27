@@ -6,20 +6,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar, Upload, X } from 'lucide-react';
+import { Calendar, Upload, X, Plus } from 'lucide-react';
 import { Task } from '@/lib/types';
 import Image from 'next/image';
 
 interface TaskFormProps {
   task?: Task;
   onSubmit: (data: Partial<Task>, image?: File) => Promise<void>;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function TaskForm({ task, onSubmit }: TaskFormProps) {
-  const [open, setOpen] = useState(false);
+export function TaskForm({ task, onSubmit, open, onOpenChange }: TaskFormProps) {
+  const [isOpen, setIsOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(task?.imageUrl || null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const dialogOpen = open !== undefined ? open : isOpen;
+  const setDialogOpen = onOpenChange || setIsOpen;
   
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
     defaultValues: task || {
@@ -49,27 +55,42 @@ export function TaskForm({ task, onSubmit }: TaskFormProps) {
   };
 
   const onSubmitForm = async (data: Partial<Task>) => {
-    console.log("Données du formulaire:", data);
-    await onSubmit(data, selectedImage || undefined);
-    setOpen(false);
-    reset();
-    setSelectedImage(null);
-    setPreviewUrl(null);
+    setIsSubmitting(true);
+    try {
+      // Si c'est une modification (task existe), ne pas envoyer l'image
+      if (task) {
+        await onSubmit(data);
+      } else {
+        // Si c'est une création, envoyer l'image si elle existe
+        await onSubmit(data, selectedImage || undefined);
+      }
+      setDialogOpen(false);
+      reset();
+      setSelectedImage(null);
+      setPreviewUrl(null);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          {task ? 'Modifier la tâche' : 'Nouvelle tâche'}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* Afficher le déclencheur seulement si nous ne sommes pas en mode édition (pas de props open) */}
+      {open === undefined && (
+        <DialogTrigger asChild>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            {task ? 'Modifier la tâche' : 'Nouvelle tâche'}
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{task ? 'Modifier la tâche' : 'Créer une nouvelle tâche'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
           <div className="space-y-2">
+            <label className="text-sm font-medium">Titre</label>
             <Input
               {...register('title', { required: 'Le titre est requis' })}
               placeholder="Titre de la tâche"
@@ -79,50 +100,53 @@ export function TaskForm({ task, onSubmit }: TaskFormProps) {
             )}
           </div>
           
-          <div className="space-y-2">
-            <label className="block text-sm font-medium mb-1">Image</label>
-            <div className="flex items-center gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full"
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                {previewUrl ? 'Changer l\'image' : 'Télécharger une image'}
-              </Button>
-              {previewUrl && (
+          {/* Afficher le sélecteur d'image uniquement pour la création de tâche */}
+          {!task && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Image</label>
+              <div className="flex items-center gap-2">
                 <Button 
                   type="button" 
                   variant="outline" 
-                  size="icon" 
-                  onClick={handleRemoveImage}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full"
                 >
-                  <X className="h-4 w-4" />
+                  <Upload className="mr-2 h-4 w-4" />
+                  {previewUrl ? 'Changer l\'image' : 'Télécharger une image'}
                 </Button>
+                {previewUrl && (
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={handleRemoveImage}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+              />
+              
+              {previewUrl && (
+                <div className="mt-2 relative aspect-video w-full overflow-hidden rounded-md">
+                  <img 
+                    src={previewUrl} 
+                    alt="Aperçu de l'image" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
               )}
             </div>
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-            />
-            
-            {previewUrl && (
-              <div className="mt-2 relative aspect-video w-full overflow-hidden rounded-md">
-                <Image 
-                  src={previewUrl} 
-                  alt="Aperçu de l'image" 
-                  fill
-                  className="object-cover"
-                />
-              </div>
-            )}
-          </div>
+          )}
           
           <div className="space-y-2">
+            <label className="text-sm font-medium">Description</label>
             <Textarea
               {...register('description')}
               placeholder="Description de la tâche"
@@ -131,6 +155,7 @@ export function TaskForm({ task, onSubmit }: TaskFormProps) {
           </div>
           
           <div className="space-y-2">
+            <label className="text-sm font-medium">Date d'échéance</label>
             <Input
               {...register('due_date', { required: 'La date d\'échéance est requise' })}
               type="date"
@@ -141,8 +166,15 @@ export function TaskForm({ task, onSubmit }: TaskFormProps) {
           </div>
           
           <div className="flex justify-end space-x-2">
-            <Button type="submit">
-              {task ? 'Mettre à jour' : 'Créer'}
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setDialogOpen(false)}
+            >
+              Annuler
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Chargement...' : task ? 'Mettre à jour' : 'Créer'}
             </Button>
           </div>
         </form>

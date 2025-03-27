@@ -72,38 +72,56 @@ export async function updateTask(id: string, taskData: Partial<Task>, image?: Fi
     throw new Error('Non authentifié');
   }
   
-  const formData = new FormData();
-  
-  if (taskData.title !== undefined) formData.append('title', taskData.title);
-  if (taskData.description !== undefined) formData.append('description', taskData.description);
-  
-  if (taskData.due_date !== undefined) formData.append('due_date', taskData.due_date);
-  if (taskData.completed !== undefined) formData.append('completed', String(taskData.completed));
-  
+  // Si une image est fournie, utiliser FormData
   if (image) {
+    const formData = new FormData();
+    
+    if (taskData.title !== undefined) formData.append('title', taskData.title);
+    if (taskData.description !== undefined) formData.append('description', taskData.description);
+    if (taskData.due_date !== undefined) formData.append('due_date', taskData.due_date);
+    if (taskData.completed !== undefined) formData.append('completed', String(taskData.completed));
+    
     formData.append('image', image);
+    formData.append('_method', 'PUT');
+    
+    console.log("FormData contenu (update):");
+    for (const pair of formData.entries()) {
+      console.log(pair[0] + ': ' + pair[1]);
+    }
+    
+    const response = await fetch(`${API_URL}/tasks/${id}`, {
+      method: 'POST', // Utiliser POST avec _method=PUT pour le form-method spoofing
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Échec de mise à jour de la tâche');
+    }
+    
+    return response.json();
+  } 
+  // Sinon, utiliser JSON
+  else {
+    const response = await fetch(`${API_URL}/tasks/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(taskData),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Échec de mise à jour de la tâche');
+    }
+    
+    return response.json();
   }
-  formData.append('_method', 'PUT');
-  
-  console.log("FormData contenu (update):");
-  for (const pair of formData.entries()) {
-    console.log(pair[0] + ': ' + pair[1]);
-  }
-  
-  const response = await fetch(`${API_URL}/tasks/${id}`, {
-    method: 'PUT', 
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-    body: formData,
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    return (error.message || 'Échec de mise à jour de la tâche');
-  }
-  
-  return response.json();
 }
 
 export async function deleteTask(id: string): Promise<void> {
@@ -171,4 +189,39 @@ export async function fetchWithAuth<T>(
   }
   
   return data as T;
+}
+
+export async function markTaskAsCompleted(id: string, completed: boolean): Promise<Task> {
+  const token = getAuthToken();
+  
+  if (!token) {
+    throw new Error('Non authentifié');
+  }
+  
+  try {
+    const response = await fetch(`${API_URL}/tasks/${id}/complete`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ completed }),
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok || data.success === false) {
+      return {
+        error: true,
+        message: data.message || 'Échec de mise à jour du statut de la tâche'
+      } as any;
+    }
+    
+    return data.data;
+  } catch (error) {
+    return {
+      error: true,
+      message: 'Erreur de connexion au serveur'
+    } as any;
+  }
 }

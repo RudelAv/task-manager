@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Task } from '@/lib/types';
-import { createTask, deleteTask, getTasks, updateTask } from '@/lib/api';
+import { createTask, deleteTask, getTasks, updateTask, markTaskAsCompleted } from '@/lib/api';
 import { TaskCard } from '@/components/task-card';
 import { TaskForm } from '@/components/task-form';
 import { useToast } from '@/hooks/use-toast';
@@ -167,7 +167,43 @@ export default function Home() {
   };
 
   const handleCompleteTask = async (taskId: string, completed: boolean) => {
-    await handleUpdateTask(taskId, { completed });
+    try {
+      const result = await markTaskAsCompleted(taskId, completed);
+      
+      // Vérifier si le résultat contient une erreur
+      if (result.error) {
+        // Afficher l'erreur dans un toast
+        toast({
+          title: 'Erreur',
+          description: result.message,
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Mettre à jour l'état local pour une réponse immédiate de l'UI
+      setTasks(tasks.map(task => 
+        task.id === taskId 
+          ? { ...task, completed } 
+          : task
+      ));
+      
+      toast({
+        title: 'Succès',
+        description: completed 
+          ? 'Tâche marquée comme terminée' 
+          : 'Tâche marquée comme non terminée',
+      });
+    } catch (error: any) {
+      console.error('Erreur lors de la mise à jour du statut de la tâche:', error);
+      
+      // Afficher un message d'erreur générique dans un toast
+      toast({
+        title: 'Erreur',
+        description: typeof error === 'string' ? error : 'Impossible de mettre à jour le statut de la tâche',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handlePageChange = (page: number) => {
@@ -189,7 +225,7 @@ export default function Home() {
       <main className="flex min-h-screen flex-col items-center p-6 md:p-12">
         <div className="container mx-auto py-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
-            <h1 className="text-3xl font-bold">Mes tâches</h1>
+            <h1 className="text-3xl font-bold">Toutes les tâches</h1>
             <TaskForm onSubmit={handleCreateTask} />
           </div>
 

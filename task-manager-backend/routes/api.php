@@ -34,5 +34,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route pour marquer une tâche comme terminée
     Route::patch('/tasks/{id}/complete', [TaskController::class, 'markAsCompleted']);
     
-    // Autres routes protégées...
+    // Nouvelles routes pour la modification et la suppression
+    Route::put('/tasks/{id}', [TaskController::class, 'update']);
+    Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);
+    
 });
