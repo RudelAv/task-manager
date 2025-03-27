@@ -3,7 +3,7 @@ export interface Task {
     title: string;
     description: string;
     imageUrl: string;
-    dueDate: string;
+    due_date: string;
     completed: boolean;
     userId: string;
     createdAt: string;
