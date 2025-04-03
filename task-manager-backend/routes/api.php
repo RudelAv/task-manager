@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\TaskControllerAdmin;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -37,5 +38,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Nouvelles routes pour la modification et la suppression
     Route::put('/tasks/{id}', [TaskController::class, 'update']);
     Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);
+
+    Route::get('/tasks/admin', [TaskControllerAdmin::class,'index']);
     
 });

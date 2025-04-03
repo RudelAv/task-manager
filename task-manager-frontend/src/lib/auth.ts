@@ -28,7 +28,6 @@ export async function login(email: string, password: string): Promise<AuthRespon
       throw data as ErrorResponse;
     }
 
-    // Stocker le token dans le localStorage et les cookies
     localStorage.setItem("auth_token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
     

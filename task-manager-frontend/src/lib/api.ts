@@ -10,7 +10,7 @@ export async function getTasks() {
     throw new Error('Non authentifié');
   }
   
-  const response = await fetch(`${API_URL}/tasks`, {
+  const response = await fetch(`${API_URL}/tasks/admin`, {
     headers: {
       'Authorization': `Bearer ${token}`,
     },

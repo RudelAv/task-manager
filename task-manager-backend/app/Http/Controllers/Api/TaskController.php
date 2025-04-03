@@ -62,7 +62,6 @@ class TaskController extends Controller
         try {
             $task = Task::findOrFail($id);
             
-            // Vérifier que l'utilisateur est bien le propriétaire de la tâche
             if ($task->user_id !== $request->user()->id) {
                 return response()->json([
                     'success' => false,
@@ -70,7 +69,6 @@ class TaskController extends Controller
                 ], 403);
             }
             
-            // Mettre à jour le statut de la tâche
             $task->update([
                 'completed' => true
             ]);

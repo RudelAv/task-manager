@@ -17,6 +17,7 @@ return new class extends Migration {
             $table->string('image_path')->nullable();
             $table->dateTime('due_date');
             $table->boolean('completed')->default(false);
+            $table->string('type')->default('default');
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
         });

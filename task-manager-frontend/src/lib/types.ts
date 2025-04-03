@@ -4,6 +4,7 @@ export interface Task {
     description: string;
     imageUrl: string;
     due_date: string;
+    type?: string;
     completed: boolean;
     userId: string;
     createdAt: string;
